@@ -492,29 +492,22 @@ src="https://www.facebook.com/tr?id=1019795334426707&ev=PageView&noscript=1"
 
 <script>
 /* =========================================================
-   TG_CONFIG — genuine-click gate + Telegram redirect
-   Fires a single, deduplicated Lead event only for
-   visitors who show real human interaction, then sends
-   them on to the Telegram channel.
+   TG_CONFIG — Telegram redirect + Lead tracking
+   Fires a single, deduplicated (per session) Lead event on
+   any genuine (trusted) click of a join button, then sends
+   the visitor on to the Telegram channel. No dwell-time or
+   prior-interaction gate — those filtered out real, fast
+   clicks and under-reported conversions to Meta.
    ========================================================= */
 (function(){
   var TG_CONFIG = {
     telegramLink: 'https://t.me/+9VR6v62Pl0k5Mjc1',
     pixelEvent: 'Lead',
-    minDwellMs: 1200,        // minimum time on page before a click is trusted
     redirectDelayMs: 250,    // gives the pixel request time to leave before navigation
     sessionKey: 'sl_Lead_fired_v1'
   };
 
-  var pageLoadedAt = Date.now();
-  var hasInteracted = false;
   var redirecting = false;
-
-  // Passive human-signal listeners — cheap, real users trigger these
-  // within the first second or two without any special handling.
-  ['scroll','mousemove','touchstart','keydown'].forEach(function(evt){
-    window.addEventListener(evt, function(){ hasInteracted = true; }, { passive:true, once:true });
-  });
 
   function genEventId(){
     return 'sl_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
@@ -528,18 +521,13 @@ src="https://www.facebook.com/tr?id=1019795334426707&ev=PageView&noscript=1"
     try { sessionStorage.setItem(TG_CONFIG.sessionKey, '1'); } catch(e){}
   }
 
-  function looksLikeBot(){
-    // Lightweight, honest signals only — never blocks a real user's join,
-    // only decides whether we count the conversion.
-    if (navigator.webdriver) return true;
-    if (typeof navigator.languages !== 'undefined' && navigator.languages.length === 0) return true;
-    return false;
-  }
-
+  // Any trusted click (real tap/click, not scripted) counts as genuine.
+  // No dwell-time or prior-scroll requirement — those were filtering out
+  // real, fast ad-traffic clicks and starving Meta's optimization signal.
+  // Bot/fraud filtering is better handled server-side (Meta's own tools,
+  // or CAPI-side checks) than by blocking the client-side pixel call.
   function isGenuineClick(evt){
-    var dwellOk = (Date.now() - pageLoadedAt) >= TG_CONFIG.minDwellMs;
-    var trustedOk = evt.isTrusted !== false; // real pointer/keyboard event, not scripted
-    return dwellOk && hasInteracted && trustedOk && !looksLikeBot();
+    return evt.isTrusted !== false;
   }
 
   function handleJoinClick(evt){
